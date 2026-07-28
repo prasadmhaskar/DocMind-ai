@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+
+spring:
+  application:
+    name: DocMind-ai
+
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY}
+        chat:
+          model: gemini-3.6-flash
+          temperature: 0.2
+
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/docmind_ai
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
