@@ -25,55 +25,87 @@ public class ChunkingServiceImpl implements ChunkingService {
 
         log.info("Started chunking");
 
-        List<String> chunkedTextList = new ArrayList<>();
+        if (extractedText == null || extractedText.isBlank()) {
+            return List.of();
+        }
+
+        List<String> chunks = new ArrayList<>();
+
+        int textLength = extractedText.length();
+
+        if (maxChunkSize >= textLength) {
+            return List.of(extractedText.trim());
+        }
 
         int start = 0;
 
-        if(maxChunkSize >= extractedText.length()) {
-            return List.of(extractedText);
-        }
+        while (start < textLength) {
 
-        while (start < extractedText.length()) {
+            int proposedEnd = Math.min(start + maxChunkSize, textLength);
 
-            int proposedEnd = Math.min(start + maxChunkSize, extractedText.length());
             int end = proposedEnd;
 
-            while(end > start &&
-                    extractedText.charAt(end) != '\n' &&
-                    extractedText.charAt(end) != '.' &&
-                    extractedText.charAt(end) != ' ')
-            {
-                end--;
+            if (proposedEnd < textLength) {
+
+                while (end > start && !isBoundary(extractedText.charAt(end - 1))) {
+                    end--;
+                }
+
+                if (end == start) {
+                    end = proposedEnd;
+                }
             }
 
-            if(end == start){
-                end = proposedEnd;
-            }
-
-            String chunk = extractedText.substring(start, end);
+            String chunk = extractedText.substring(start, end).trim();
 
             if (!chunk.isBlank()) {
-                chunkedTextList.add(chunk);
+                chunks.add(chunk);
             }
 
-            start = Math.max(end - overlapSize, 0);
+            if (end >= textLength) {
+                break;
+            }
+
+            int nextStart = Math.max(end - overlapSize, 0);
+
+            if (nextStart <= start) {nextStart = end;}
+
+            start = nextStart;
         }
 
-        log.info("Input text length:{}, max chunk size:{}, overlap size:{}, total generated chunks:{}", extractedText.length(), maxChunkSize, overlapSize,  chunkedTextList.size());
+        log.info(
+                "Chunking completed. inputLength={}, maxChunkSize={}, overlapSize={}, totalChunks={}",
+                textLength,
+                maxChunkSize,
+                overlapSize,
+                chunks.size()
+        );
 
-        return chunkedTextList;
+        return chunks;
+    }
+
+
+    private boolean isBoundary(char character) {
+        return
+                character == '\n' ||
+                character == '.' ||
+                Character.isWhitespace(character);
     }
 
 
     @PostConstruct
-    public void validateChunkSizeEnvVariables(){
+    public void validateChunkSizeEnvVariables() {
 
-        if(maxChunkSize <= 0) {
-            throw new IllegalArgumentException("Invalid ENV variable value set for {chunk.max.size}");
+        if (maxChunkSize <= 0) {
+            throw new IllegalArgumentException(
+                    "chunk.max.size must be greater than 0"
+            );
         }
 
-        if(overlapSize <= 0 || overlapSize >= maxChunkSize) {
-            throw new IllegalArgumentException("Invalid ENV variable value set for {chunk.overlap.size}");
+        if (overlapSize < 0 || overlapSize >= maxChunkSize) {
+            throw new IllegalArgumentException(
+                    "chunk.overlap.size must be >= 0 and < chunk.max.size"
+            );
         }
     }
 }

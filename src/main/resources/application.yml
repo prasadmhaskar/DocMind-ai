@@ -9,7 +9,7 @@ chunk:
   max:
     size: 500
   overlap:
-    size: -100
+    size: 100
 
 spring:
   application:
@@ -21,6 +21,12 @@ spring:
         chat:
           model: gemini-3.6-flash
           temperature: 0.2
+        embedding:
+          api-key: ${GEMINI_API_KEY}
+          text:
+            model: gemini-embedding-2
+            task-type: RETRIEVAL_DOCUMENT
+            dimensions: 768
   datasource:
     url: jdbc:postgresql://localhost:5432/docmind_ai
     username: postgres

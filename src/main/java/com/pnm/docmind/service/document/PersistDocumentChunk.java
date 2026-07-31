@@ -1,0 +1,56 @@
+package com.pnm.docmind.service.document;
+
+import com.pnm.docmind.constant.DocumentStatus;
+import com.pnm.docmind.entity.Document;
+import com.pnm.docmind.entity.DocumentChunk;
+import com.pnm.docmind.exception.DocumentProcessingException;
+import com.pnm.docmind.repository.DocumentChunkRepository;
+import com.pnm.docmind.repository.DocumentRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PersistDocumentChunk {
+
+    private final DocumentChunkRepository documentChunkRepository;
+    private final DocumentRepository documentRepository;
+
+    @Transactional
+    public void persist(Document document, List<String> chunkedTextList, List<float[]> embeddings) {
+
+        if (chunkedTextList.size() != embeddings.size()) {
+            throw new DocumentProcessingException("Chunk and embedding count mismatch");
+        }
+
+        List<DocumentChunk> documentChunkList = new ArrayList<>();
+
+        for(int i=0; i<chunkedTextList.size(); i++) {
+
+            DocumentChunk documentChunk = DocumentChunk.builder()
+                    .document(document)
+                    .chunkIndex(i)
+                    .content(chunkedTextList.get(i))
+                    .embedding(embeddings.get(i))
+                    .build();
+
+            documentChunkList.add(documentChunk);
+
+        }
+        documentChunkRepository.saveAll(documentChunkList);
+
+        document.setDocumentStatus(DocumentStatus.READY);
+        documentRepository.save(document);
+
+        log.info("Persisted {} chunks for documentId={}", documentChunkList.size(), document.getId());
+
+    }
+
+}
