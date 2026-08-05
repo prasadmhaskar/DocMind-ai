@@ -17,7 +17,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
 
 
     @Override
-    public List<float[]> generateEmbedding(List<String> chunkedTextList) {
+    public List<float[]> generateDocumentEmbedding(List<String> chunkedTextList) {
 
         if (chunkedTextList.isEmpty()) {
             throw new IllegalArgumentException(
@@ -32,6 +32,32 @@ public class EmbeddingServiceImpl implements EmbeddingService {
                 throw new DocumentProcessingException("Embedding model returned an empty embedding");
 
             log.info("Embedding model returned {} embeddings", embeddings.size());
+
+            return embeddings;
+        }
+        catch (Exception e){
+            log.error("Failed to generate embedding", e);
+
+            throw new DocumentProcessingException("Failed to generate embedding: " + e);
+        }
+
+    }
+
+
+    @Override
+    public float[] generateQueryEmbedding(String queryText) {
+
+        if (queryText.isEmpty()) {
+            throw new IllegalArgumentException("Text for embedding cannot be empty");
+        }
+
+        try{
+            float[] embeddings = embeddingModel.embed(queryText);
+
+            if(embeddings.length == 0)
+                throw new DocumentProcessingException("Embedding model returned an empty embedding");
+
+            log.info("Embedding model returned {} embeddings", embeddings.length);
 
             return embeddings;
         }

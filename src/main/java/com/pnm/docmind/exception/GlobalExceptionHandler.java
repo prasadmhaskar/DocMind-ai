@@ -15,17 +15,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidFile.class)
     public ResponseEntity<String> handleInvalidFileException(InvalidFile ex) {
-        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(QuestionNotValidException.class)
+    public ResponseEntity<String> handleQuestionNotValidException(QuestionNotValidException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
     @ExceptionHandler(FileStorageException.class)
     public ResponseEntity<String> handleFileStorageException(FileStorageException ex) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
     }
 
     @ExceptionHandler(PdfProcessingException.class)
     public ResponseEntity<String> handlePdfProcessingException(PdfProcessingException ex) {
-        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(ex.getMessage());
     }
 
     @ExceptionHandler(DocumentNotFoundException.class)
@@ -35,7 +40,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DocumentProcessingException.class)
     public ResponseEntity<String> handleDocumentProcessingException(DocumentProcessingException ex) {
-        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(ex.getMessage());
     }
 
 

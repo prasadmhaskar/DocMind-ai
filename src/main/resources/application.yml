@@ -11,6 +11,11 @@ chunk:
   overlap:
     size: 100
 
+rag:
+  retrieval:
+    maxResults: 5
+    minimum-similarity: 0.65
+
 spring:
   application:
     name: DocMind-ai

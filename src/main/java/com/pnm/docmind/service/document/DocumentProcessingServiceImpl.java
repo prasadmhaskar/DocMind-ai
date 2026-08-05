@@ -68,7 +68,7 @@ public class DocumentProcessingServiceImpl implements DocumentProcessingService 
 
             log.info("Generated {} chunks for documentId={}", chunkedTextList.size(), documentId);
 
-            List<float[]> generatedEmbeddings = embeddingService.generateEmbedding(chunkedTextList);
+            List<float[]> generatedEmbeddings = embeddingService.generateDocumentEmbedding(chunkedTextList);
 
             if (chunkedTextList.size() != generatedEmbeddings.size()) {
                 throw new DocumentProcessingException("Chunk and embedding count mismatch");

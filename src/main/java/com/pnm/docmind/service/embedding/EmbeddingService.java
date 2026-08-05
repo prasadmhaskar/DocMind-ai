@@ -4,5 +4,6 @@ import java.util.List;
 
 public interface EmbeddingService {
 
-    List<float[]> generateEmbedding(List<String> chunkedTextList);
+    List<float[]> generateDocumentEmbedding(List<String> chunkedTextList);
+    float[] generateQueryEmbedding(String queryText);
 }
