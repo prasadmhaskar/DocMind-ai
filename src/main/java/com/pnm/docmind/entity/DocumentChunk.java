@@ -36,6 +36,9 @@ public class DocumentChunk {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "page_number", nullable=false)
+    private Integer pageNumber;
+
     @JdbcTypeCode(SqlTypes.VECTOR)
     @Array(length = 768)
     @Column(

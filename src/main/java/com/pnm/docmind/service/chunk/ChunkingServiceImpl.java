@@ -1,5 +1,7 @@
 package com.pnm.docmind.service.chunk;
 
+import com.pnm.docmind.dto.DocumentChunkData;
+import com.pnm.docmind.dto.PageContent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -21,20 +24,19 @@ public class ChunkingServiceImpl implements ChunkingService {
     private int overlapSize;
 
     @Override
-    public List<String> chunk(String extractedText) {
+    public List<DocumentChunkData> chunk(PageContent page, int chunkIndex) {
 
-        log.info("Started chunking");
+        Objects.requireNonNull(page);
 
-        if (extractedText == null || extractedText.isBlank()) {
-            return List.of();
-        }
+        log.info("Started chunking page={} length={}", page.pageNumber(), page.text().length());
 
-        List<String> chunks = new ArrayList<>();
+        List<DocumentChunkData> chunks = new ArrayList<>();
 
-        int textLength = extractedText.length();
+        int textLength = page.text().length();
+        String currentPageText = page.text();
 
         if (maxChunkSize >= textLength) {
-            return List.of(extractedText.trim());
+            return List.of(new DocumentChunkData(page.pageNumber(), chunkIndex, currentPageText));
         }
 
         int start = 0;
@@ -47,7 +49,7 @@ public class ChunkingServiceImpl implements ChunkingService {
 
             if (proposedEnd < textLength) {
 
-                while (end > start && !isBoundary(extractedText.charAt(end - 1))) {
+                while (end > start && isNotBoundary(currentPageText.charAt(end - 1))) {
                     end--;
                 }
 
@@ -56,10 +58,10 @@ public class ChunkingServiceImpl implements ChunkingService {
                 }
             }
 
-            String chunk = extractedText.substring(start, end).trim();
+            String chunk = currentPageText.substring(start, end).trim();
 
             if (!chunk.isBlank()) {
-                chunks.add(chunk);
+                chunks.add(new DocumentChunkData(page.pageNumber(), chunkIndex, chunk));
             }
 
             if (end >= textLength) {
@@ -71,25 +73,32 @@ public class ChunkingServiceImpl implements ChunkingService {
             if (nextStart <= start) {nextStart = end;}
 
             start = nextStart;
+
+            chunkIndex++;
         }
 
         log.info(
-                "Chunking completed. inputLength={}, maxChunkSize={}, overlapSize={}, totalChunks={}",
-                textLength,
+                "Chunking completed. currentPage={}, maxChunkSize={}, overlapSize={}, totalChunks={}",
+                page.pageNumber(),
                 maxChunkSize,
                 overlapSize,
                 chunks.size()
         );
 
         return chunks;
+
     }
 
-
-    private boolean isBoundary(char character) {
+    private boolean isNotBoundary(char character) {
         return
-                character == '\n' ||
-                character == '.' ||
-                Character.isWhitespace(character);
+                character != '\n' &&
+                character != '.' &&
+                character != '?' &&
+                character != '!' &&
+                character != ':' &&
+                character != ';' &&
+                character != ')' &&
+                !Character.isWhitespace(character);
     }
 
 

@@ -56,7 +56,9 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
                     throw new DocumentProcessingException("Document processing failed.");
         }
 
-        float[] queryEmbedding = embeddingService.generateQueryEmbedding(question);
+        String trimmedQuestion = question.trim();
+
+        float[] queryEmbedding = embeddingService.generateQueryEmbedding(trimmedQuestion);
 
         log.info("Generated query embedding for documentId={}", documentId);
 
@@ -82,7 +84,7 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
         AskQuestionResponse response = new AskQuestionResponse(
                 modelResponse,
                 topChunks.stream().map(
-                        chunk -> new SourceResponse(chunk.chunkIndex(), chunk.similarity())
+                        chunk -> new SourceResponse(chunk.pageNumber(), chunk.chunkIndex(), chunk.similarity())
                 ).toList()
         );
 

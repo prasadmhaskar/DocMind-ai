@@ -23,6 +23,7 @@ public class DocumentChunkJdbcRepository {
 
         String sql = """
                 SELECT
+                    page_number,
                     chunk_index,
                     content,
                     1 - (embedding <=> ?) AS similarity
@@ -43,6 +44,7 @@ public class DocumentChunkJdbcRepository {
                     ps.setInt(4, topK);
                 },
                 (rs, rowNum) -> new RetrievedChunk(
+                        rs.getInt("page_number"),
                         rs.getInt("chunk_index"),
                         rs.getString("content"),
                         rs.getDouble("similarity")

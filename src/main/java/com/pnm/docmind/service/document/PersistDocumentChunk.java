@@ -1,6 +1,7 @@
 package com.pnm.docmind.service.document;
 
 import com.pnm.docmind.constant.DocumentStatus;
+import com.pnm.docmind.dto.DocumentChunkData;
 import com.pnm.docmind.entity.Document;
 import com.pnm.docmind.entity.DocumentChunk;
 import com.pnm.docmind.exception.DocumentProcessingException;
@@ -22,31 +23,32 @@ public class PersistDocumentChunk {
     private final DocumentChunkRepository documentChunkRepository;
     private final DocumentRepository documentRepository;
 
-    @Transactional
-    public void persist(Document document, List<String> chunkedTextList, List<float[]> embeddings) {
 
-        if (chunkedTextList.size() != embeddings.size()) {
+    @Transactional
+    public void persist(Document document, List<DocumentChunkData> documentChunks, List<float[]> embeddings) {
+
+        if (documentChunks.size() != embeddings.size()) {
             throw new DocumentProcessingException("Chunk and embedding count mismatch");
         }
 
         List<DocumentChunk> documentChunkList = new ArrayList<>();
 
-        for(int i=0; i<chunkedTextList.size(); i++) {
+        for(int i=0; i<documentChunks.size(); i++) {
 
             DocumentChunk documentChunk = DocumentChunk.builder()
                     .document(document)
-                    .chunkIndex(i)
-                    .content(chunkedTextList.get(i))
+                    .chunkIndex(documentChunks.get(i).chunkIndex())
+                    .content(documentChunks.get(i).content())
+                    .pageNumber(documentChunks.get(i).pageNumber())
                     .embedding(embeddings.get(i))
                     .build();
 
             documentChunkList.add(documentChunk);
-
         }
+
         documentChunkRepository.saveAll(documentChunkList);
 
         document.setDocumentStatus(DocumentStatus.READY);
-        documentRepository.save(document);
 
         log.info("Persisted {} chunks for documentId={}", documentChunkList.size(), document.getId());
 
