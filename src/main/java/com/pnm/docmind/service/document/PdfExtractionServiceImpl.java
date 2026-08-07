@@ -25,22 +25,15 @@ public class PdfExtractionServiceImpl implements PdfExtractionService {
     @Override
     public List<PageContent> extractText(Path pdfPath) {
 
-        List<PageContent> pages = new ArrayList<>();
+        log.info("Started pdf extraction.");
 
-        if(Files.notExists(pdfPath)) {
-            throw new PdfProcessingException("PDF file not found: " + pdfPath);
-        }
-        if(Files.isDirectory(pdfPath)) {
-            throw new PdfProcessingException("PDF file is a directory: " + pdfPath);
-        }
+        List<PageContent> pages = new ArrayList<>();
 
         try(PDDocument document = Loader.loadPDF(pdfPath.toFile())) {
 
             if(document.isEncrypted()) {
                 throw new PdfProcessingException("PDF file is encrypted: " + pdfPath);
             }
-
-            log.info("PDF has {} pages", document.getNumberOfPages());
 
             PDFTextStripper stripper = new PDFTextStripper();
 
@@ -58,6 +51,8 @@ public class PdfExtractionServiceImpl implements PdfExtractionService {
 
                 pages.add(new PageContent(pageNumber, pageText));
             }
+
+            log.info("Finished PDF extraction. Total pages={}", pages.size());
 
             return pages;
 

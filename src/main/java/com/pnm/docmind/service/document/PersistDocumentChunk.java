@@ -50,6 +50,8 @@ public class PersistDocumentChunk {
 
         document.setDocumentStatus(DocumentStatus.READY);
 
+        documentRepository.save(document);
+
         log.info("Persisted {} chunks for documentId={}", documentChunkList.size(), document.getId());
 
     }

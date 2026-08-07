@@ -131,6 +131,8 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- OCR -->
+
 	</dependencies>
 
 	<build>

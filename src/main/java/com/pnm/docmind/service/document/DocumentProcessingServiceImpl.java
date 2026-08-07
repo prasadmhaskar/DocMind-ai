@@ -34,6 +34,8 @@ public class DocumentProcessingServiceImpl implements DocumentProcessingService 
     private final PersistDocumentChunk persistDocumentChunk;
     private final DocumentStatusService documentStatusService;
     private final DeleteFailedDocument deleteFailedDocument;
+    private final OcrExtractionService ocrExtractionService;
+    private final TextExtractionOrchestrator textExtractionOrchestrator;
 
     @Value("${app.storage.path}")
     private String storagePath;
@@ -53,15 +55,15 @@ public class DocumentProcessingServiceImpl implements DocumentProcessingService 
 
             log.info("Extracting text from {}", document.getStoredFilename());
 
-            List<PageContent> extractedTextPages = pdfExtractionService.extractText(path);
+            List<PageContent> extractedPageContent = textExtractionOrchestrator.extract(path);
 
-            log.info("Extracted {} pages", extractedTextPages.size());
+            log.info("Extracted {} pages", extractedPageContent.size());
 
-            if (extractedTextPages.isEmpty()) {
+            if (extractedPageContent.isEmpty()) {
                 throw new EmptyFile("No text found in uploaded file");
             }
 
-            if (extractedTextPages.size() == 1 && extractedTextPages.getFirst().text().strip().length() < 10) {
+            if (extractedPageContent.size() == 1 && extractedPageContent.getFirst().text().strip().length() < 10) {
                 throw new EmptyFile("Extracted text is too short.");
             }
 
@@ -69,7 +71,7 @@ public class DocumentProcessingServiceImpl implements DocumentProcessingService 
 
             int chunkIndex = 0;
 
-            for (PageContent extractedTextPage : extractedTextPages) {
+            for (PageContent extractedTextPage : extractedPageContent) {
                 List<DocumentChunkData> chunk = chunkingService.chunk(extractedTextPage, chunkIndex);
                 documentChunks.addAll(chunk);
                 chunkIndex = chunk.getLast().chunkIndex() + 1;
