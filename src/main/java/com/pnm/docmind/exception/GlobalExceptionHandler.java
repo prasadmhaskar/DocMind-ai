@@ -38,6 +38,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
+    @ExceptionHandler(ConversationNotFoundException.class)
+    public ResponseEntity<String> handleConversationNotFoundException(ConversationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(WorkspaceAuthenticationException.class)
+    public ResponseEntity<String> handleWorkspaceAuthenticationException(WorkspaceAuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+    }
+
     @ExceptionHandler(DocumentProcessingException.class)
     public ResponseEntity<String> handleDocumentProcessingException(DocumentProcessingException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(ex.getMessage());

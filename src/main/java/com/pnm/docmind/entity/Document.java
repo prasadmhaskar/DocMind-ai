@@ -35,6 +35,16 @@ public class Document {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
+    @Column(name = "retention_exempt", nullable = false)
+    private boolean retentionExempt;
+
+    @Column(name = "is_public", nullable = false)
+    private boolean publicDocument;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "workspace_id")
+    private Workspace workspace;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DocumentStatus documentStatus;

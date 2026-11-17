@@ -123,6 +123,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!--Groq-->
+
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-openai</artifactId>
+		</dependency>
+
 		<!-- Testing -->
 
 		<dependency>

@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface OcrExtractionService {
 
-    List<PageContent> extract(Path pdfPath);
+    List<PageContent> extractPages(Path pdfPath, List<Integer> pageNumbers);
 }

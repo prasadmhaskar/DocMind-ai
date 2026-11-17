@@ -42,8 +42,11 @@ public class OcrExtractionServiceImpl implements OcrExtractionService {
     }
 
     @Override
-    public List<PageContent> extract(Path pdfPath) {
+    public List<PageContent> extractPages(Path pdfPath, List<Integer> pageNumbers) {
         validatePdfPath(pdfPath);
+        if (pageNumbers == null || pageNumbers.isEmpty()) {
+            return List.of();
+        }
 
         long start = System.nanoTime();
         Path temporaryDirectory = null;
@@ -56,17 +59,21 @@ public class OcrExtractionServiceImpl implements OcrExtractionService {
                     throw new PdfProcessingException("PDF file is encrypted: " + pdfPath);
                 }
 
-                log.info("Starting OCR extraction. pages={}, language={}, dpi={}",
-                        document.getNumberOfPages(), language, dpi);
+                log.info("Starting OCR extraction. selectedPages={}, language={}, dpi={}",
+                        pageNumbers.size(), language, dpi);
 
                 PDFRenderer renderer = new PDFRenderer(document);
                 List<PageContent> pages = new ArrayList<>();
 
-                for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+                for (int pageNumber : pageNumbers) {
+                    if (pageNumber < 1 || pageNumber > document.getNumberOfPages()) {
+                        throw new PdfProcessingException("OCR page number is outside the PDF: " + pageNumber);
+                    }
+                    int pageIndex = pageNumber - 1;
                     String text = extractPage(renderer, pageIndex, temporaryDirectory);
 
                     if (!text.isBlank()) {
-                        pages.add(new PageContent(pageIndex + 1, text.trim()));
+                        pages.add(new PageContent(pageNumber, text.trim()));
                     }
                 }
 

@@ -6,6 +6,7 @@ import com.pnm.docmind.entity.Document;
 import com.pnm.docmind.entity.DocumentChunk;
 import com.pnm.docmind.exception.DocumentProcessingException;
 import com.pnm.docmind.repository.DocumentChunkRepository;
+import com.pnm.docmind.repository.DocumentProcessingJobRepository;
 import com.pnm.docmind.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ public class PersistDocumentChunk {
 
     private final DocumentChunkRepository documentChunkRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentProcessingJobRepository processingJobRepository;
 
 
     @Transactional
@@ -46,11 +48,13 @@ public class PersistDocumentChunk {
             documentChunkList.add(documentChunk);
         }
 
+        documentChunkRepository.deleteByDocumentId(document.getId());
         documentChunkRepository.saveAll(documentChunkList);
 
         document.setDocumentStatus(DocumentStatus.READY);
 
         documentRepository.save(document);
+        processingJobRepository.deleteById(document.getId());
 
         log.info("Persisted {} chunks for documentId={}", documentChunkList.size(), document.getId());
 

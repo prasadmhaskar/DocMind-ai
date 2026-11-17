@@ -19,7 +19,7 @@ public class DeleteFailedDocument {
 
     public void deleteDocument(String storedFilename) {
 
-        log.info("Delete failed document. storedFilename={}", storedFilename);
+        log.info("Delete stored document file. storedFilename={}", storedFilename);
 
         if (storedFilename == null || storedFilename.isBlank()) {
             throw new IllegalArgumentException("Stored filename must not be blank");

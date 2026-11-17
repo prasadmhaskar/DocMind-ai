@@ -4,6 +4,26 @@ server:
 app:
   storage:
     path: /home/prasad/docmindDocuments
+  ai:
+    chat:
+      primary: ${CHAT_PRIMARY_PROVIDER:groq}
+      gemini:
+        model: ${GEMINI_CHAT_MODEL:gemini-3.6-flash}
+        timeout: 30s
+  cors:
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  workspace:
+    cookie-name: DOCMIND_WORKSPACE
+    cookie-secure: ${WORKSPACE_COOKIE_SECURE:false}
+    cookie-same-site: ${WORKSPACE_COOKIE_SAME_SITE:Lax}
+  document-retention:
+    days: 5
+    scan-interval-ms: 86400000
+    initial-delay-ms: 60000
+  document-processing:
+    poll-interval-ms: 5000
+    initial-delay-ms: 5000
+    lease-heartbeat-ms: 60000
 
 chunk:
   max:
@@ -14,6 +34,7 @@ chunk:
 rag:
   retrieval:
     maxResults: 5
+    list-max-results: 12
     minimum-similarity: 0.65
 
 ocr:
@@ -25,12 +46,22 @@ spring:
   application:
     name: DocMind-ai
   ai:
+    model:
+      chat: openai
+      embedding: none
+      "embedding.text": google-genai
+
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai/v1
+      timeout: 30s
+      max-retries: 0
+      chat:
+        model: openai/gpt-oss-120b
+        temperature: 0.2
+
     google:
       genai:
-        api-key: ${GEMINI_API_KEY}
-        chat:
-          model: gemini-3.6-flash
-          temperature: 0.2
         embedding:
           api-key: ${GEMINI_API_KEY}
           text:

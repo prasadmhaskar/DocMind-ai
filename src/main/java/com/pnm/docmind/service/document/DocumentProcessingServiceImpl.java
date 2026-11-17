@@ -11,7 +11,6 @@ import com.pnm.docmind.service.chunk.ChunkingService;
 import com.pnm.docmind.service.embedding.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -28,28 +26,25 @@ import java.util.List;
 public class DocumentProcessingServiceImpl implements DocumentProcessingService {
 
     private final DocumentRepository documentRepository;
-    private final PdfExtractionService pdfExtractionService;
     private final ChunkingService chunkingService;
     private final EmbeddingService embeddingService;
     private final PersistDocumentChunk persistDocumentChunk;
-    private final DocumentStatusService documentStatusService;
-    private final DeleteFailedDocument deleteFailedDocument;
-    private final OcrExtractionService ocrExtractionService;
     private final TextExtractionOrchestrator textExtractionOrchestrator;
+    private final DocumentProcessingJobService processingJobService;
 
     @Value("${app.storage.path}")
     private String storagePath;
 
 
     @Override
-    @Async
+    @Async("documentProcessingExecutor")
     public void processDocumentAsync(Long documentId) {
 
         log.info("Started processing document {}", documentId);
-
-        Document document = documentRepository.findById(documentId).orElseThrow(() -> new DocumentNotFoundException("Document not found with id: " + documentId));
-
+        processingJobService.markActive(documentId);
         try {
+            Document document = documentRepository.findById(documentId).orElseThrow(() ->
+                    new DocumentNotFoundException("Document not found with id: " + documentId));
 
             Path path = Paths.get(storagePath, document.getStoredFilename());
 
@@ -73,6 +68,9 @@ public class DocumentProcessingServiceImpl implements DocumentProcessingService 
 
             for (PageContent extractedTextPage : extractedPageContent) {
                 List<DocumentChunkData> chunk = chunkingService.chunk(extractedTextPage, chunkIndex);
+                if (chunk.isEmpty()) {
+                    continue;
+                }
                 documentChunks.addAll(chunk);
                 chunkIndex = chunk.getLast().chunkIndex() + 1;
             }
@@ -95,14 +93,15 @@ public class DocumentProcessingServiceImpl implements DocumentProcessingService 
 
         } catch (Exception e) {
             log.error("Document processing failed. documentId={}", documentId, e);
-
-            deleteFailedDocument.deleteDocument(document.getStoredFilename());
-
             try {
-                documentStatusService.markFailed(documentId);
-            } catch (Exception statusException) {
-                log.error("Failed to mark document as FAILED. documentId={}", documentId, statusException);
+                processingJobService.recordFailure(documentId, e);
+            } catch (Exception recoveryException) {
+                // The processing job lease remains in the database and can be reclaimed after it expires.
+                log.error("Failed to record processing failure; job will be recovered after its lease expires. documentId={}",
+                        documentId, recoveryException);
             }
+        } finally {
+            processingJobService.markInactive(documentId);
         }
 
 

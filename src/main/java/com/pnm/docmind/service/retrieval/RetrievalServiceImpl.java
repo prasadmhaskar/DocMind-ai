@@ -52,19 +52,17 @@ public class RetrievalServiceImpl implements RetrievalService {
 
         log.info("Generated query embeddings");
 
-        List<RetrievedChunk> retrievedChunks = documentChunkJdbcRepository.search(documentId, queryEmbedding, maxResults);
+        List<RetrievedChunk> retrievedChunks = documentChunkJdbcRepository.search(
+                documentId, queryEmbedding, question, maxResults, minimumSimilarity);
 
         log.info("Retrieved {} chunks", retrievedChunks.size());
 
         List<RetrievedChunkResponse> response = retrievedChunks.stream()
-                .filter(chunk -> chunk.similarity() >= minimumSimilarity)
                 .map(chunk -> new RetrievedChunkResponse(
                         chunk.chunkIndex(),
                         chunk.similarity(),
                         chunk.content()))
                 .toList();
-
-        log.info("{} chunks passed threshold {}", response.size(), minimumSimilarity);
 
         log.info("Retrieved {} relevant chunks", response.size());
 

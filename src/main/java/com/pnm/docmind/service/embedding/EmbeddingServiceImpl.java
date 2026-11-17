@@ -7,11 +7,14 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmbeddingServiceImpl implements EmbeddingService {
+
+    private static final int MAX_EMBEDDING_BATCH_SIZE = 100;
 
     private final EmbeddingModel embeddingModel;
 
@@ -26,7 +29,17 @@ public class EmbeddingServiceImpl implements EmbeddingService {
         }
 
         try{
-            List<float[]> embeddings = embeddingModel.embed(chunkedTextList);
+            List<float[]> embeddings = new ArrayList<>(chunkedTextList.size());
+            for (int start = 0; start < chunkedTextList.size(); start += MAX_EMBEDDING_BATCH_SIZE) {
+                int end = Math.min(start + MAX_EMBEDDING_BATCH_SIZE, chunkedTextList.size());
+                List<String> batch = chunkedTextList.subList(start, end);
+                List<float[]> batchEmbeddings = embeddingModel.embed(batch);
+                if (batchEmbeddings.size() != batch.size()) {
+                    throw new DocumentProcessingException("Embedding model returned a different number of embeddings than requested");
+                }
+                embeddings.addAll(batchEmbeddings);
+                log.info("Generated embeddings for chunks {}-{} of {}", start + 1, end, chunkedTextList.size());
+            }
 
             if(embeddings.isEmpty())
                 throw new DocumentProcessingException("Embedding model returned an empty embedding");

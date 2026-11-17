@@ -1,0 +1,2 @@
+ALTER TABLE documents
+    ADD COLUMN retention_exempt BOOLEAN NOT NULL DEFAULT FALSE;

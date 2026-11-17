@@ -9,9 +9,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,10 +42,6 @@ public class PdfExtractionServiceImpl implements PdfExtractionService {
 
 
                 String pageText = stripper.getText(document);
-
-                if(pageText.isBlank()){
-                    continue;
-                }
 
                 pages.add(new PageContent(pageNumber, pageText));
             }
