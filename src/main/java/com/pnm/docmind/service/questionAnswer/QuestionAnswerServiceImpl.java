@@ -249,7 +249,10 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
     private boolean refersToConversation(String question) {
         String normalized = question.toLowerCase(Locale.ROOT);
         return normalized.matches("(?s).*\\b(it|this|that|these|those|they|them|their|its|former|latter|above|same)\\b.*")
-                || normalized.matches("(?s)^\\s*and\\b.*");
+                || normalized.matches("(?s)^\\s*and\\b.*")
+                || normalized.matches("(?s)^\\s*(tell|explain|describe|elaborate|expand|go)\\b.*\\b(more|detail|details|further|deeper)\\b.*")
+                || normalized.matches("(?s)^\\s*(more|additional)\\s+(detail|details|information)\\b.*")
+                || normalized.matches("(?s)^\\s*(please\\s+)?(elaborate|expand)\\b.*");
     }
 
     private AskQuestionResponse persistResponse(PreparedQuestion prepared, String answer) {

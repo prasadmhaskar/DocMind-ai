@@ -24,7 +24,17 @@ async function initializeWorkspace() {
 
 async function createApiError(response, fallbackMessage = "The request failed.") {
   const body = await response.text().catch(() => "");
-  const error = new Error(body || `${fallbackMessage} (${response.status})`);
+  let message = body || `${fallbackMessage} (${response.status})`;
+  if (response.status === 429) {
+    const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+      const wait = retryAfterSeconds < 60
+        ? `${retryAfterSeconds} second${retryAfterSeconds === 1 ? "" : "s"}`
+        : `${Math.ceil(retryAfterSeconds / 60)} minute${Math.ceil(retryAfterSeconds / 60) === 1 ? "" : "s"}`;
+      message = `${message} Try again in ${wait}.`;
+    }
+  }
+  const error = new Error(message);
   error.status = response.status;
   return error;
 }

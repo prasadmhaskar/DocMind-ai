@@ -48,6 +48,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<String> handleRateLimitExceededException(RateLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", Long.toString(ex.getRetryAfterSeconds()))
+                .body(ex.getMessage());
+    }
+
     @ExceptionHandler(DocumentProcessingException.class)
     public ResponseEntity<String> handleDocumentProcessingException(DocumentProcessingException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(ex.getMessage());

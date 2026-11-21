@@ -24,6 +24,15 @@ app:
     poll-interval-ms: 5000
     initial-delay-ms: 5000
     lease-heartbeat-ms: 60000
+  rate-limit:
+    uploads:
+      max-requests: ${RATE_LIMIT_UPLOADS_MAX:5}
+      window-seconds: ${RATE_LIMIT_UPLOADS_WINDOW_SECONDS:3600}
+    questions:
+      max-requests: ${RATE_LIMIT_QUESTIONS_MAX:30}
+      window-seconds: ${RATE_LIMIT_QUESTIONS_WINDOW_SECONDS:3600}
+    cleanup-interval-ms: 3600000
+    cleanup-initial-delay-ms: 3600000
 
 chunk:
   max:

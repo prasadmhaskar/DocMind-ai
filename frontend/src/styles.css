@@ -159,6 +159,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .empty-chat h1 { font-size: clamp(27px, 3.5vw, 38px); letter-spacing: -1.35px; }
 .empty-chat > p { max-width: 450px; margin: 13px auto 23px; color: #8a9590; font-size: 12px; line-height: 1.7; }
 .suggestion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 25px; }
+.sample-question-rotator { width: min(100%, 510px); margin: 26px auto 0; text-align: left; }
+.sample-question-label { display: block; margin: 0 0 8px 3px; color: #98a29d; font: 9px 'DM Mono', monospace; letter-spacing: .13em; }
+.sample-question-card { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 58px; padding: 0 13px; border: 1px solid #e4eae5; border-radius: 10px; background: #ffffffd9; color: #56645d; text-align: left; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px #365e470a; animation: sample-question-enter .48s cubic-bezier(.2,.75,.25,1) both; }
+.sample-question-card:hover { border-color: #cbded2; background: #fff; color: #356c5b; transform: translateY(-1px); }
+.sample-question-card > svg:first-child { flex: 0 0 auto; color: #5d8977; }
+.sample-question-card span { flex: 1; }
+@keyframes sample-question-enter { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: translateX(0); } }
 .suggestion-card { display: flex; align-items: center; gap: 8px; min-height: 54px; padding: 0 10px; border: 1px solid #e6ebe7; border-radius: 9px; background: #fff; color: #718079; text-align: left; font-size: 10px; font-weight: 600; cursor: pointer; transition: all .18s ease; }
 .suggestion-card > svg:first-child { flex: 0 0 auto; color: #5d8977; }
 .suggestion-card:hover { border-color: #c5dbcf; background: #f9fcf9; color: #466b5a; transform: translateY(-1px); }
@@ -207,6 +214,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .composer textarea::placeholder { color: #a3aca7; }
 .composer textarea:disabled { cursor: not-allowed; }
 .composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 5px; }
+.composer-footer-controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.source-toggle-group { display: flex; align-items: center; gap: 7px; }
+.source-toggle { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 0 10px; border: 1px solid #e0e6e1; border-radius: 999px; background: #f8faf8; color: #68756e; font-size: 10px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease; }
+.source-toggle:hover:not(:disabled), .source-toggle:focus-visible { border-color: #a9cbbb; background: #f0f7f2; color: #356c5b; }
+.source-toggle.is-selected { border-color: #2e7566; background: #327769; color: #fff; box-shadow: 0 2px 7px #3277692b; }
+.source-toggle.is-selected:hover:not(:disabled), .source-toggle.is-selected:focus-visible { border-color: #286457; background: #286b5e; color: #fff; }
+.source-toggle:disabled { opacity: .55; cursor: not-allowed; }
+.source-toggle::after { position: absolute; z-index: 10; bottom: calc(100% + 9px); left: 0; width: max-content; max-width: min(260px, calc(100vw - 40px)); padding: 7px 10px; border: 1px solid #e5eae6; border-radius: 8px; background: #26332f; color: #fff; content: attr(data-tooltip); font-size: 10px; font-weight: 500; line-height: 1.45; white-space: normal; text-align: left; box-shadow: 0 5px 15px #1b2b2526; opacity: 0; visibility: hidden; transform: translateY(3px); transition: opacity .14s ease, transform .14s ease, visibility .14s ease; pointer-events: none; }
+.source-toggle:last-child::after { right: auto; left: 0; text-align: left; }
+.source-toggle:hover::after, .source-toggle:focus-visible::after { opacity: 1; visibility: visible; transform: translateY(0); }
 .composer-hint { display: flex; align-items: center; gap: 5px; color: #a0aaa4; font-size: 9px; }
 .composer-hint svg { color: #8ba394; }
 .composer-hint kbd { margin-left: 8px; padding: 2px 4px; border: 1px solid #e6eae6; border-radius: 4px; background: #f7f9f7; font: 9px 'DM Mono', monospace; color: #8c9891; }
@@ -253,6 +270,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   .conversation-view.conversation-empty { padding: 25px 18px 10px; }
   .empty-chat h1 { font-size: clamp(27px, 7vw, 35px); }
   .suggestion-grid { grid-template-columns: 1fr; max-width: 350px; margin-right: auto; margin-left: auto; }
+  .sample-question-rotator { max-width: 350px; }
+  .sample-question-card { font-size: 11px; }
   .suggestion-card { min-height: 45px; }
   .message-list { padding: 24px 17px 30px; }
   .message { gap: 9px; margin-bottom: 24px; }
@@ -260,6 +279,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   .user-message-bubble { max-width: 88%; font-size: 12px; }
   .composer-area { padding: 8px 12px 12px; }
   .composer { min-height: 88px; border-radius: 13px; }
+  .composer-footer-controls { flex-wrap: wrap; gap: 7px; }
+  .source-toggle-group { gap: 5px; }
+  .source-toggle { min-height: 27px; padding: 0 8px; font-size: 9px; }
   .composer-hint { font-size: 8px; }
   .profile-copy span { display: none; }
   .topbar-profile { gap: 6px; }

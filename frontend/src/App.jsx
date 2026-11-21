@@ -8,6 +8,44 @@ const suggestions = [
   { icon: "spark", title: "Explain something simply", prompt: "Explain the most important concept in simple terms." }
 ];
 const DOCUMENT_PROCESSING_TIMEOUT_MS = 2 * 60 * 1000;
+const NO_SAMPLE_QUESTIONS = [];
+const DEMO_DOCUMENT_ID = Number(import.meta.env.VITE_DEMO_DOCUMENT_ID || 40);
+const PROFILE_DOCUMENT_ID = Number(import.meta.env.VITE_PROFILE_DOCUMENT_ID || 46);
+const SHOWCASE_DOCUMENT_PRESENTATION = {
+  [DEMO_DOCUMENT_ID]: {
+    title: "Try the demo",
+    description: "Explore practical everyday topics in the Everyday Life Guide.",
+    chatHeading: "Explore everyday life",
+    chatEmphasis: "with the Everyday Life Guide",
+    chatDescription: "Ask about the guide’s monthly budget, travel budget, and practical checklists.",
+    sampleQuestions: [
+      "What is the suggested monthly budget breakdown?",
+      "How is the travel budget divided?",
+      "What items are included in the guide’s checklist?",
+      "Can you summarize the guide’s practical tips?"
+    ]
+  },
+  [PROFILE_DOCUMENT_ID]: {
+    title: "Ask about Prasad",
+    description: "Learn about Prasad’s background, skills, projects, and career goals.",
+    chatHeading: "Ask questions about",
+    chatEmphasis: "Prasad",
+    chatDescription: "Explore Prasad’s education, experience, technical skills, projects, and career goals.",
+    sampleQuestions: [
+      "What did Prasad study?",
+      "What did Prasad do before pursuing software development?",
+      "Which projects has Prasad built?",
+      "What technologies did Prasad use to build DocMind AI?"
+    ]
+  }
+};
+
+function showcasePresentation(document) {
+  return SHOWCASE_DOCUMENT_PRESENTATION[document.documentId] || {
+    title: document.originalFilename,
+    description: "Ask questions about this public document."
+  };
+}
 
 function readRoute() {
   const match = window.location.pathname.match(/^\/chat\/(\d+)\/?$/);
@@ -118,6 +156,7 @@ export default function App() {
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [question, setQuestion] = useState("");
+  const [sampleQuestionIndex, setSampleQuestionIndex] = useState(0);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -134,6 +173,16 @@ export default function App() {
     () => documents.find((document) => document.documentId === selectedDocumentId) || null,
     [documents, selectedDocumentId]
   );
+  const activeShowcaseDocumentId = [DEMO_DOCUMENT_ID, PROFILE_DOCUMENT_ID].includes(Number(selectedDocumentId))
+    ? Number(selectedDocumentId)
+    : null;
+  const activeShowcasePresentation = activeShowcaseDocumentId
+    ? SHOWCASE_DOCUMENT_PRESENTATION[activeShowcaseDocumentId]
+    : null;
+  const activeSampleQuestions = activeShowcasePresentation?.sampleQuestions || NO_SAMPLE_QUESTIONS;
+  const activeSampleQuestion = activeSampleQuestions.length
+    ? activeSampleQuestions[sampleQuestionIndex % activeSampleQuestions.length]
+    : null;
   const selectedDocumentProcessingTimedOut = useMemo(() => {
     if (!selectedDocument || !["PROCESSING", "UPLOADING"].includes(selectedDocument.documentStatus)) return false;
     const uploadedAt = new Date(selectedDocument.uploadedAt).getTime();
@@ -146,19 +195,25 @@ export default function App() {
     return Array.isArray(list) ? list : [];
   }, []);
 
-  const openDocument = useCallback(async (documentId, conversationId = null, { replace = false } = {}) => {
+  const openDocument = useCallback(async (documentId, conversationId = null, { replace = false, resumeLatest = false } = {}) => {
     setSelectedDocumentId(documentId);
     setActiveConversationId(conversationId);
     setMessages([]);
-    setChatLoading(Boolean(conversationId));
+    setChatLoading(Boolean(conversationId) || resumeLatest);
     setSidebarOpen(false);
-    writeRoute(documentId, conversationId, replace);
+    if (!resumeLatest) writeRoute(documentId, conversationId, replace);
 
     try {
       const list = await api.getConversations(documentId);
-      setConversations(Array.isArray(list) ? list : []);
-      if (conversationId) {
-        const savedMessages = await api.getMessages(documentId, conversationId);
+      const conversationList = Array.isArray(list) ? list : [];
+      const targetConversationId = resumeLatest
+        ? conversationList[0]?.conversationId ?? null
+        : conversationId;
+      setConversations(conversationList);
+      setActiveConversationId(targetConversationId);
+      writeRoute(documentId, targetConversationId, replace);
+      if (targetConversationId) {
+        const savedMessages = await api.getMessages(documentId, targetConversationId);
         setMessages((savedMessages || []).map((message) => ({
           id: `saved-${message.messageId}`,
           role: String(message.role).toLowerCase(),
@@ -248,6 +303,18 @@ export default function App() {
   }, [messages, sending]);
 
   useEffect(() => {
+    setSampleQuestionIndex(0);
+  }, [selectedDocumentId]);
+
+  useEffect(() => {
+    if (!activeSampleQuestions.length || messages.length > 0 || chatLoading) return undefined;
+    const timer = window.setInterval(() => {
+      setSampleQuestionIndex((current) => (current + 1) % activeSampleQuestions.length);
+    }, 4600);
+    return () => window.clearInterval(timer);
+  }, [activeSampleQuestions, chatLoading, messages.length]);
+
+  useEffect(() => {
     if (!notice) return undefined;
     const timer = window.setTimeout(() => setNotice(""), 6000);
     return () => window.clearTimeout(timer);
@@ -296,6 +363,24 @@ export default function App() {
     inputRef.current?.focus();
   }
   startNewChatRef.current = startNewChat;
+
+  async function toggleShowcaseDocument(documentId) {
+    if (sending) return;
+    if (Number(selectedDocumentId) === documentId) {
+      setSelectedDocumentId(null);
+      setActiveConversationId(null);
+      setConversations([]);
+      setMessages([]);
+      setChatLoading(false);
+      writeRoute(null, null);
+      return;
+    }
+    await openDocument(documentId, null, { resumeLatest: true });
+  }
+
+  async function selectDocument(documentId) {
+    await openDocument(documentId, null, { resumeLatest: true });
+  }
 
   async function handleUpload(event) {
     const file = event.target.files?.[0];
@@ -473,12 +558,12 @@ export default function App() {
           <div className="document-list">
             {filteredDocuments.map((document) => (
               <div key={document.documentId} className={`document-row ${selectedDocumentId === document.documentId ? "is-selected" : ""}`}>
-                <button className="document-select" onClick={() => openDocument(document.documentId)} title={document.originalFilename}>
+                <button className="document-select" onClick={() => selectDocument(document.documentId)} title={document.originalFilename}>
                   <span className={`document-icon ${document.publicDocument ? "is-public" : ""}`}><Icon name={document.publicDocument ? "book" : "file"} size={16} /></span>
                   <span className="document-labels">
-                    <span className="document-name">{document.originalFilename}</span>
+                    <span className="document-name">{document.publicDocument ? showcasePresentation(document).title : document.originalFilename}</span>
                     <span className="document-subline">
-                      {document.publicDocument ? "Showcase" : "Private"}
+                      {document.publicDocument ? (Number(document.documentId) === DEMO_DOCUMENT_ID ? "Demo guide" : Number(document.documentId) === PROFILE_DOCUMENT_ID ? "Prasad’s profile" : "Showcase") : "Private"}
                       {document.documentStatus !== "READY" ? <><span className="subline-separator">·</span>{document.documentStatus === "FAILED" ? "Failed" : document.documentStatus === "PROCESSING" && Number.isFinite(new Date(document.uploadedAt).getTime()) && Date.now() - new Date(document.uploadedAt).getTime() >= DOCUMENT_PROCESSING_TIMEOUT_MS ? "Delayed" : "Processing"}</> : null}
                     </span>
                   </span>
@@ -555,9 +640,9 @@ export default function App() {
                   <div className="showcase-heading"><span>EXPLORE THE SHOWCASE</span><span className="showcase-rule" /></div>
                   <div className="showcase-cards">
                     {documents.filter((document) => document.publicDocument).map((document) => (
-                      <button key={document.documentId} className="showcase-card" onClick={() => openDocument(document.documentId)}>
+                      <button key={document.documentId} className="showcase-card" onClick={() => selectDocument(document.documentId)} title={showcasePresentation(document).description}>
                         <span className="showcase-card-icon"><Icon name="book" size={17} /></span>
-                        <span><strong>{document.originalFilename}</strong><small>Ask questions · Public document</small></span>
+                        <span><strong>{showcasePresentation(document).title}</strong><small>{showcasePresentation(document).description}</small></span>
                         <Icon name="chevron" size={16} className="showcase-arrow" />
                       </button>
                     ))}
@@ -578,11 +663,24 @@ export default function App() {
                 <div className="empty-chat">
                   <div className="empty-chat-icon"><Icon name="spark" size={22} /></div>
                   <span className="empty-eyebrow">{selectedDocument.publicDocument ? "PUBLIC SHOWCASE DOCUMENT" : "YOUR PRIVATE DOCUMENT"}</span>
-                  <h1>Ask anything about<br /><em>{selectedDocument.originalFilename}</em></h1>
-                  {activeIsReady ? <p>Answers are grounded in this PDF, with page references to help you explore further.</p>
+                  {activeShowcasePresentation ? (
+                    <h1>{activeShowcasePresentation.chatHeading}<br /><em>{activeShowcasePresentation.chatEmphasis}</em></h1>
+                  ) : <h1>Ask anything about<br /><em>{selectedDocument.originalFilename}</em></h1>}
+                  {activeIsReady ? <p>{activeShowcasePresentation?.chatDescription || "Answers are grounded in this PDF, with page references to help you explore further."}</p>
                     : selectedDocument.documentStatus === "FAILED" ? <p>This PDF could not be processed. Delete it and upload it again.</p>
                       : <p>Your PDF is being prepared. You can ask questions as soon as it’s ready.</p>}
-                  {activeIsReady ? <div className="suggestion-grid">
+                  {activeIsReady && activeSampleQuestion ? (
+                    <div className="sample-question-rotator" aria-label="Sample questions">
+                      <span className="sample-question-label">TRY ASKING</span>
+                      <button key={`${selectedDocumentId}-${sampleQuestionIndex}`} className="sample-question-card"
+                        onClick={() => sendQuestion(activeSampleQuestion)}>
+                        <Icon name="spark" size={17} />
+                        <span>{activeSampleQuestion}</span>
+                        <Icon name="chevron" size={15} className="suggestion-arrow" />
+                      </button>
+                    </div>
+                  ) : null}
+                  {activeIsReady && !activeSampleQuestion ? <div className="suggestion-grid">
                     {suggestions.map((item) => <button key={item.title} className="suggestion-card" onClick={() => sendQuestion(item.prompt)}>
                       <Icon name={item.icon} size={17} /><span>{item.title}</span><Icon name="chevron" size={15} className="suggestion-arrow" />
                     </button>)}
@@ -608,12 +706,11 @@ export default function App() {
                             {message.sources?.length > 0 ? <div className="sources-block">
                               <div className="sources-title"><span className="source-title-line" /> SOURCES FROM YOUR PDF <span className="source-title-line" /></div>
                               <div className="source-list">
-                                {message.sources.map((source, index) => <span key={`${source.pageNumber}-${source.chunkIndex}-${index}`} className="source-chip">
-                                  <Icon name="file" size={13} /><span>Page {source.pageNumber}</span><span className="source-separator">·</span><span>{Math.round((source.similarity || 0) * 100)}% match</span>
+                                {[...new Set(message.sources.map((source) => source.pageNumber).filter((pageNumber) => pageNumber != null))].map((pageNumber) => <span key={pageNumber} className="source-chip">
+                                  <Icon name="file" size={13} /><span>Page {pageNumber}</span>
                                 </span>)}
                               </div>
                             </div> : null}
-                            {!message.isStreaming && !message.error && !message.status && message.content ? <div className="answer-meta"><span><Icon name="check" size={13} /> Grounded in your document</span></div> : null}
                           </div>
                         </>
                       )}
@@ -640,7 +737,19 @@ export default function App() {
                   placeholder={activeIsReady ? "Ask a question about this document…" : "Your chat will be ready when processing finishes"}
                   disabled={!activeIsReady || sending} rows={1} aria-label="Ask a question" />
                 <div className="composer-bottom">
-                  <div className="composer-hint"><Icon name="lock" size={13} /><span>Answers use this document as their source</span><kbd>↵</kbd><span>to send</span></div>
+                  <div className="composer-footer-controls">
+                    <div className="source-toggle-group" aria-label="Choose a showcase document">
+                      <button type="button" className={`source-toggle ${activeShowcaseDocumentId === DEMO_DOCUMENT_ID ? "is-selected" : ""}`}
+                        aria-pressed={activeShowcaseDocumentId === DEMO_DOCUMENT_ID} disabled={sending}
+                        data-tooltip="Ask questions about everyday topics in the Everyday Life Guide."
+                        onClick={() => toggleShowcaseDocument(DEMO_DOCUMENT_ID)}>Try the demo</button>
+                      <button type="button" className={`source-toggle ${activeShowcaseDocumentId === PROFILE_DOCUMENT_ID ? "is-selected" : ""}`}
+                        aria-pressed={activeShowcaseDocumentId === PROFILE_DOCUMENT_ID} disabled={sending}
+                        data-tooltip="Ask about Prasad’s background, skills, projects, and career goals."
+                        onClick={() => toggleShowcaseDocument(PROFILE_DOCUMENT_ID)}>Ask about Prasad</button>
+                    </div>
+                    <div className="composer-hint"><Icon name="lock" size={13} /><span>Answers use this document as their source</span><kbd>↵</kbd><span>to send</span></div>
+                  </div>
                   {sending ? <button type="button" className="send-button stop-button" onClick={stopAnswer} aria-label="Stop generating"><Icon name="stop" size={16} /></button>
                     : <button type="submit" className="send-button" disabled={!question.trim() || !activeIsReady} aria-label="Send question"><Icon name="send" size={16} /></button>}
                 </div>

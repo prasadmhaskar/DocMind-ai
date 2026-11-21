@@ -20,6 +20,7 @@ public class CorsConfiguration implements WebMvcConfigurer {
                 .allowedOrigins(frontendUrl)
                 .allowedMethods("GET", "POST", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
+                .exposedHeaders("Retry-After")
                 .allowCredentials(true);
     }
 }

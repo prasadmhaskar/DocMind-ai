@@ -6,6 +6,7 @@ import com.pnm.docmind.dto.ConversationMessageResponse;
 import com.pnm.docmind.dto.ConversationSummaryResponse;
 import com.pnm.docmind.service.document.DocumentService;
 import com.pnm.docmind.service.questionAnswer.ConversationService;
+import com.pnm.docmind.service.ratelimit.WorkspaceRateLimitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,12 +22,14 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final ConversationService conversationService;
+    private final WorkspaceRateLimitService rateLimitService;
 
     @PostMapping
     public ResponseEntity<UploadDocumentResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestAttribute("workspaceId") UUID workspaceId) {
 
+        rateLimitService.checkUploadLimit(workspaceId);
         UploadDocumentResponse response = documentService.upload(file, workspaceId);
 
         return ResponseEntity.accepted().body(response);

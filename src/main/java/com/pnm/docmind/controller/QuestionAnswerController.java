@@ -4,6 +4,7 @@ import com.pnm.docmind.dto.AskQuestionRequest;
 import com.pnm.docmind.dto.AskQuestionResponse;
 import com.pnm.docmind.dto.QuestionStreamEvent;
 import com.pnm.docmind.service.questionAnswer.QuestionAnswerService;
+import com.pnm.docmind.service.ratelimit.WorkspaceRateLimitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class QuestionAnswerController {
 
     private final QuestionAnswerService questionAnswerService;
+    private final WorkspaceRateLimitService rateLimitService;
 
     @PostMapping("/documents/{documentId}/ask")
     public ResponseEntity<AskQuestionResponse> askQuestion(
@@ -31,6 +33,7 @@ public class QuestionAnswerController {
             @PathVariable Long documentId,
             @RequestAttribute("workspaceId") UUID workspaceId) {
 
+        rateLimitService.checkQuestionLimit(workspaceId);
         AskQuestionResponse response = questionAnswerService.retrieve(
                 documentId,
                 request.conversationId(),
@@ -46,6 +49,7 @@ public class QuestionAnswerController {
             @RequestBody @Valid AskQuestionRequest request,
             @PathVariable Long documentId,
             @RequestAttribute("workspaceId") UUID workspaceId) {
+        rateLimitService.checkQuestionLimit(workspaceId);
         return questionAnswerService.stream(documentId, request.conversationId(), request.question(), workspaceId);
     }
 }
