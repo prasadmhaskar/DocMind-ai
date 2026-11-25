@@ -36,3 +36,4 @@ build/
 .vscode/
 
 src/main/resources/application-dev.yml
+application-dev.yml
