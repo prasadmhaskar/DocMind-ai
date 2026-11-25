@@ -4,14 +4,19 @@ import com.pnm.docmind.dto.UploadDocumentResponse;
 import com.pnm.docmind.dto.DocumentSummaryResponse;
 import com.pnm.docmind.dto.ConversationMessageResponse;
 import com.pnm.docmind.dto.ConversationSummaryResponse;
+import com.pnm.docmind.dto.DocumentFileDownload;
 import com.pnm.docmind.service.document.DocumentService;
 import com.pnm.docmind.service.questionAnswer.ConversationService;
 import com.pnm.docmind.service.ratelimit.WorkspaceRateLimitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 import java.util.List;
 
@@ -50,6 +55,19 @@ public class DocumentController {
     public ResponseEntity<List<DocumentSummaryResponse>> listDocuments(
             @RequestAttribute("workspaceId") UUID workspaceId) {
         return ResponseEntity.ok(documentService.listDocuments(workspaceId));
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadDocument(
+            @PathVariable Long id,
+            @RequestAttribute("workspaceId") UUID workspaceId) {
+        DocumentFileDownload download = documentService.downloadDocument(id, workspaceId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(download.filename(), StandardCharsets.UTF_8).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .body(download.resource());
     }
 
     @GetMapping("/{id}/conversations")

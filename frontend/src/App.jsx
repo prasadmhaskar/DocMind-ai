@@ -9,25 +9,13 @@ const suggestions = [
 ];
 const DOCUMENT_PROCESSING_TIMEOUT_MS = 2 * 60 * 1000;
 const NO_SAMPLE_QUESTIONS = [];
-const DEMO_DOCUMENT_ID = Number(import.meta.env.VITE_DEMO_DOCUMENT_ID || 40);
-const PROFILE_DOCUMENT_ID = Number(import.meta.env.VITE_PROFILE_DOCUMENT_ID || 46);
+const DEMO_DOCUMENT_ID = Number(import.meta.env.VITE_DEMO_DOCUMENT_ID || 50);
+const PROFILE_DOCUMENT_ID = Number(import.meta.env.VITE_PROFILE_DOCUMENT_ID || 49);
+const HOMEPAGE_SHOWCASE_IDS = [PROFILE_DOCUMENT_ID, DEMO_DOCUMENT_ID];
 const SHOWCASE_DOCUMENT_PRESENTATION = {
-  [DEMO_DOCUMENT_ID]: {
-    title: "Try the demo",
-    description: "Explore practical everyday topics in the Everyday Life Guide.",
-    chatHeading: "Explore everyday life",
-    chatEmphasis: "with the Everyday Life Guide",
-    chatDescription: "Ask about the guide’s monthly budget, travel budget, and practical checklists.",
-    sampleQuestions: [
-      "What is the suggested monthly budget breakdown?",
-      "How is the travel budget divided?",
-      "What items are included in the guide’s checklist?",
-      "Can you summarize the guide’s practical tips?"
-    ]
-  },
   [PROFILE_DOCUMENT_ID]: {
     title: "Ask about Prasad",
-    description: "Learn about Prasad’s background, skills, projects, and career goals.",
+    headerTitle: "Prasad’s Profile",
     chatHeading: "Ask questions about",
     chatEmphasis: "Prasad",
     chatDescription: "Explore Prasad’s education, experience, technical skills, projects, and career goals.",
@@ -37,14 +25,33 @@ const SHOWCASE_DOCUMENT_PRESENTATION = {
       "Which projects has Prasad built?",
       "What technologies did Prasad use to build DocMind AI?"
     ]
+  },
+  [DEMO_DOCUMENT_ID]: {
+    title: "Use demo PDF",
+    headerTitle: "Trip Planning Guide",
+    chatHeading: "Plan your next trip",
+    chatEmphasis: "one step at a time",
+    chatDescription: "Explore a friendly guide to choosing dates, budgeting, transport, accommodation, packing, and simple itineraries.",
+    sampleQuestions: [
+      "What is a simple way to plan a trip?",
+      "How should I set a trip budget?",
+      "What should I compare before booking transport?",
+      "What is a simple three-day trip itinerary?",
+      "What should I check the day before departure?"
+    ]
   }
 };
 
 function showcasePresentation(document) {
   return SHOWCASE_DOCUMENT_PRESENTATION[document.documentId] || {
-    title: document.originalFilename,
-    description: "Ask questions about this public document."
+    title: document.originalFilename
   };
+}
+
+function showcasePriority(document) {
+  return Number(document.documentId) === PROFILE_DOCUMENT_ID ? 0
+    : Number(document.documentId) === DEMO_DOCUMENT_ID ? 1
+      : 2;
 }
 
 function readRoute() {
@@ -121,7 +128,7 @@ function ProfileLinks() {
     <div className="topbar-profile" aria-label="Developer profile">
       <div className="profile-copy">
         <strong>Prasad</strong>
-        <span>Java FullStack Developer</span>
+        <span>Java Full Stack Developer</span>
       </div>
       <span className="profile-divider" aria-hidden="true" />
       <a className="profile-link linkedin-link" href="https://www.linkedin.com/in/prasadmhaskar/"
@@ -155,6 +162,7 @@ export default function App() {
   const [chatLoading, setChatLoading] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [downloadingDemo, setDownloadingDemo] = useState(false);
   const [question, setQuestion] = useState("");
   const [sampleQuestionIndex, setSampleQuestionIndex] = useState(0);
   const [sending, setSending] = useState(false);
@@ -173,6 +181,10 @@ export default function App() {
     () => documents.find((document) => document.documentId === selectedDocumentId) || null,
     [documents, selectedDocumentId]
   );
+  const showcaseDocuments = useMemo(() => {
+    return documents.filter((document) => document.publicDocument && showcasePriority(document) < 2)
+      .sort((left, right) => showcasePriority(left) - showcasePriority(right));
+  }, [documents]);
   const activeShowcaseDocumentId = [DEMO_DOCUMENT_ID, PROFILE_DOCUMENT_ID].includes(Number(selectedDocumentId))
     ? Number(selectedDocumentId)
     : null;
@@ -250,10 +262,9 @@ export default function App() {
         } else if (route.documentId) {
           writeRoute(null, null, true);
         }
-      } catch (error) {
+      } catch {
         if (!active) return;
         setWorkspaceState("error");
-        setNotice(error.message || "Could not connect to DocMind.");
       } finally {
         if (active) setDocumentsLoading(false);
       }
@@ -346,8 +357,11 @@ export default function App() {
 
   const filteredDocuments = useMemo(() => {
     const value = sidebarSearch.trim().toLowerCase();
-    if (!value) return documents;
-    return documents.filter((document) => document.originalFilename.toLowerCase().includes(value));
+    const matchingDocuments = value
+      ? documents.filter((document) => document.originalFilename.toLowerCase().includes(value))
+      : documents;
+    return matchingDocuments.slice()
+      .sort((left, right) => showcasePriority(left) - showcasePriority(right));
   }, [documents, sidebarSearch]);
 
   async function startNewChat() {
@@ -380,6 +394,28 @@ export default function App() {
 
   async function selectDocument(documentId) {
     await openDocument(documentId, null, { resumeLatest: true });
+  }
+
+  async function openHomepageShowcase(documentId) {
+    const showcaseDocument = showcaseDocuments.find((document) => Number(document.documentId) === documentId);
+    if (!showcaseDocument) {
+      const name = SHOWCASE_DOCUMENT_PRESENTATION[documentId].headerTitle;
+      setNotice(`${name} is currently unavailable. Please try again later.`);
+      return;
+    }
+    await selectDocument(showcaseDocument.documentId);
+  }
+
+  async function downloadDemoDocument() {
+    if (downloadingDemo) return;
+    setDownloadingDemo(true);
+    try {
+      await api.downloadDocument(DEMO_DOCUMENT_ID);
+    } catch (error) {
+      setNotice(error.message || "Could not download the demo PDF.");
+    } finally {
+      setDownloadingDemo(false);
+    }
   }
 
   async function handleUpload(event) {
@@ -558,7 +594,7 @@ export default function App() {
           <div className="document-list">
             {filteredDocuments.map((document) => (
               <div key={document.documentId} className={`document-row ${selectedDocumentId === document.documentId ? "is-selected" : ""}`}>
-                <button className="document-select" onClick={() => selectDocument(document.documentId)} title={document.originalFilename}>
+                <button className="document-select" onClick={() => selectDocument(document.documentId)}>
                   <span className={`document-icon ${document.publicDocument ? "is-public" : ""}`}><Icon name={document.publicDocument ? "book" : "file"} size={16} /></span>
                   <span className="document-labels">
                     <span className="document-name">{document.publicDocument ? showcasePresentation(document).title : document.originalFilename}</span>
@@ -581,7 +617,7 @@ export default function App() {
 
           {selectedDocument ? (
             <div className="history-section">
-              <div className="nav-section-heading history-heading"><span>Recent chats</span><button className="tiny-icon-button" onClick={startNewChat} title="New chat"><Icon name="plus" size={15} /></button></div>
+              <div className="nav-section-heading history-heading"><span>Recent chats</span></div>
               {conversations.length === 0 ? <div className="sidebar-empty compact">No saved chats yet</div> : null}
               {conversations.map((conversation) => (
                 <button key={conversation.conversationId}
@@ -610,9 +646,17 @@ export default function App() {
             {selectedDocument ? (
               <div className="active-document-topbar">
                 <span className="topbar-doc-icon"><Icon name={selectedDocument.publicDocument ? "book" : "file"} size={16} /></span>
-                <span className="topbar-doc-name">{selectedDocument.originalFilename}</span>
-                {selectedDocument.publicDocument ? <span className="showcase-pill">Showcase</span> : null}
+                <span className="topbar-doc-name">
+                  {(selectedDocument.publicDocument && activeShowcasePresentation?.headerTitle) || selectedDocument.originalFilename}
+                </span>
                 <StatusBadge status={selectedDocument.documentStatus} timedOut={selectedDocumentProcessingTimedOut} />
+                {Number(selectedDocument.documentId) === DEMO_DOCUMENT_ID && selectedDocument.publicDocument ? (
+                  <button className="demo-download-button" onClick={downloadDemoDocument} disabled={downloadingDemo}
+                    aria-label="Download the How to Plan a Trip demo PDF" title="Download the demo PDF to read it">
+                    <Icon name="download" size={15} />
+                    <span>{downloadingDemo ? "Preparing…" : "Download demo PDF"}</span>
+                  </button>
+                ) : null}
               </div>
             ) : <div className="topbar-title">Document chat</div>}
           </div>
@@ -620,40 +664,60 @@ export default function App() {
         </header>
 
         {workspaceState === "error" ? (
-          <div className="connection-banner"><span>Could not connect to the backend. Make sure Spring Boot is running on port 8080.</span><button onClick={() => window.location.reload()}>Retry</button></div>
+          <div className="connection-banner">
+            <span role="status">We couldn’t connect to DocMind. Please try again in a moment.</span>
+            <button type="button" onClick={() => window.location.reload()}>Retry</button>
+          </div>
         ) : null}
 
         {!selectedDocument ? (
           <section className="welcome-view">
-            <div className="welcome-glow" />
             <div className="welcome-content">
-              <div className="welcome-orb"><Icon name="spark" size={26} /></div>
+              {/*<div className="welcome-orb"><Icon name="spark" size={26} /></div>*/}
               <div className="eyebrow"><span className="eyebrow-line" /> YOUR DOCUMENTS, IN CONVERSATION <span className="eyebrow-line" /></div>
-              <h1>What would you like<br /><em>to understand?</em></h1>
-              <p>Bring a PDF. Ask a question. Get an answer grounded in what you shared.</p>
-              <button className="welcome-upload" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                <Icon name="upload" size={18} /> {uploading ? "Uploading…" : "Upload a document"}<span className="upload-shortcut">PDF · up to 20 MB</span>
-              </button>
-
-              {documents.filter((document) => document.publicDocument).length > 0 ? (
-                <div className="showcase-block">
-                  <div className="showcase-heading"><span>EXPLORE THE SHOWCASE</span><span className="showcase-rule" /></div>
-                  <div className="showcase-cards">
-                    {documents.filter((document) => document.publicDocument).map((document) => (
-                      <button key={document.documentId} className="showcase-card" onClick={() => selectDocument(document.documentId)} title={showcasePresentation(document).description}>
-                        <span className="showcase-card-icon"><Icon name="book" size={17} /></span>
-                        <span><strong>{showcasePresentation(document).title}</strong><small>{showcasePresentation(document).description}</small></span>
-                        <Icon name="chevron" size={16} className="showcase-arrow" />
-                      </button>
-                    ))}
-                  </div>
+              <h1 className="welcome-heading">
+                <span className="welcome-heading-intro">Would you like to ask questions about</span>{" "}
+                <span className="welcome-heading-topics">
+                  <span className="your-document">your document</span> or <span className="your-prasad">Prasad</span>
+                </span>
+              </h1>
+              <div className="welcome-actions">
+                <button type="button" className="welcome-action" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  <Icon name="upload" size={18} />
+                  <span>{uploading ? "Uploading…" : "Upload a PDF"}</span>
+                  <span className="welcome-action-description">up to 20 MB</span>
+                </button>
+                {HOMEPAGE_SHOWCASE_IDS.map((documentId) => {
+                  const { title } = SHOWCASE_DOCUMENT_PRESENTATION[documentId];
+                  const isProfile = documentId === PROFILE_DOCUMENT_ID;
+                  return (
+                    <button type="button" key={documentId}
+                      className={`welcome-action ${isProfile ? "welcome-action-profile" : "welcome-action-demo"}`}
+                      disabled={documentsLoading}
+                      onClick={() => openHomepageShowcase(documentId)}>
+                      <Icon name={isProfile ? "chat" : "book"} size={18} />
+                      <span>{title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="welcome-guidance">
+                <div className="welcome-guidance-content">
+                  <p className="welcome-description">
+                    <strong>DocMind</strong> is an AI assistant for PDFs. Ask questions in your own words and get answers drawn from the document, with page references.
+                  </p>
+                  <h2>What you can do</h2>
+                  <ul>
+                    <li><strong>Upload a PDF</strong> and ask questions about its contents.</li>
+                    <li><strong>Ask about Prasad’s</strong> background, skills, and projects.</li>
+                    <li><strong>Use the demo PDF</strong> if you don’t have one to upload.</li>
+                  </ul>
                 </div>
-              ) : null}
-              {documents.filter((document) => document.publicDocument).length === 0 && documents.length > 0 ? (
-                <div className="welcome-library"><Icon name="file" size={16} /> Select a document from your library to start a chat.</div>
-              ) : null}
+                {showcaseDocuments.length === 0 && documents.length > 0 ? (
+                  <div className="welcome-library"><Icon name="file" size={16} /> Select a document from your library to start a chat.</div>
+                ) : null}
+              </div>
             </div>
-            <div className="welcome-footnote"><Icon name="lock" size={13} /> Your documents stay private to this browser workspace</div>
           </section>
         ) : (
           <>
@@ -704,7 +768,7 @@ export default function App() {
                             {message.status && !message.isStreaming ? <div className="message-warning">{message.status}</div> : null}
                             {message.error ? <div className="message-error">{message.error}<button onClick={() => sendQuestion(messages.at(-2)?.content || "")}>Try again</button></div> : null}
                             {message.sources?.length > 0 ? <div className="sources-block">
-                              <div className="sources-title"><span className="source-title-line" /> SOURCES FROM YOUR PDF <span className="source-title-line" /></div>
+                              <div className="sources-title"><span className="source-title-line" /> REFERENCED PAGES <span className="source-title-line" /></div>
                               <div className="source-list">
                                 {[...new Set(message.sources.map((source) => source.pageNumber).filter((pageNumber) => pageNumber != null))].map((pageNumber) => <span key={pageNumber} className="source-chip">
                                   <Icon name="file" size={13} /><span>Page {pageNumber}</span>
@@ -741,14 +805,13 @@ export default function App() {
                     <div className="source-toggle-group" aria-label="Choose a showcase document">
                       <button type="button" className={`source-toggle ${activeShowcaseDocumentId === DEMO_DOCUMENT_ID ? "is-selected" : ""}`}
                         aria-pressed={activeShowcaseDocumentId === DEMO_DOCUMENT_ID} disabled={sending}
-                        data-tooltip="Ask questions about everyday topics in the Everyday Life Guide."
-                        onClick={() => toggleShowcaseDocument(DEMO_DOCUMENT_ID)}>Try the demo</button>
+                        data-tooltip="You can dowload demo pdf to get context. Example questions - What is a simple way to plan a trip? What is a simple three-day trip itinerary?"
+                        onClick={() => toggleShowcaseDocument(DEMO_DOCUMENT_ID)}>Use demo pdf</button>
                       <button type="button" className={`source-toggle ${activeShowcaseDocumentId === PROFILE_DOCUMENT_ID ? "is-selected" : ""}`}
                         aria-pressed={activeShowcaseDocumentId === PROFILE_DOCUMENT_ID} disabled={sending}
-                        data-tooltip="Ask about Prasad’s background, skills, projects, and career goals."
+                        data-tooltip="Ask about Prasad’s background, skills, projects, and career goals. Example questions- Tell me about you? Tell your skills? Explain your projects?"
                         onClick={() => toggleShowcaseDocument(PROFILE_DOCUMENT_ID)}>Ask about Prasad</button>
                     </div>
-                    <div className="composer-hint"><Icon name="lock" size={13} /><span>Answers use this document as their source</span><kbd>↵</kbd><span>to send</span></div>
                   </div>
                   {sending ? <button type="button" className="send-button stop-button" onClick={stopAnswer} aria-label="Stop generating"><Icon name="stop" size={16} /></button>
                     : <button type="submit" className="send-button" disabled={!question.trim() || !activeIsReady} aria-label="Send question"><Icon name="send" size={16} /></button>}

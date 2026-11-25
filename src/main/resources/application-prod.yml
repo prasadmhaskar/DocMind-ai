@@ -1,0 +1,114 @@
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: 8080
+  forward-headers-strategy: framework
+
+app:
+  showcase:
+    demo-document-id: ${DEMO_DOCUMENT_ID}
+    profile-document-id: ${PROFILE_DOCUMENT_ID}
+  storage:
+    path: ${FILE_STORAGE_PATH}
+  ai:
+    chat:
+      primary: ${CHAT_PRIMARY_PROVIDER:groq}
+      gemini:
+        model: ${GEMINI_CHAT_MODEL:gemini-3.6-flash}
+        timeout: 30s
+  cors:
+    frontend-url: ${FRONTEND_URL}
+  workspace:
+    cookie-name: DOCMIND_WORKSPACE
+    cookie-secure: ${WORKSPACE_COOKIE_SECURE:true}
+    cookie-same-site: ${WORKSPACE_COOKIE_SAME_SITE:Lax}
+  document-retention:
+    days: 5
+    scan-interval-ms: 86400000
+    initial-delay-ms: 60000
+  document-processing:
+    poll-interval-ms: 5000
+    initial-delay-ms: 5000
+    lease-heartbeat-ms: 60000
+  rate-limit:
+    uploads:
+      max-requests: ${RATE_LIMIT_UPLOADS_MAX:5}
+      window-seconds: ${RATE_LIMIT_UPLOADS_WINDOW_SECONDS:3600}
+    questions:
+      max-requests: ${RATE_LIMIT_QUESTIONS_MAX:30}
+      window-seconds: ${RATE_LIMIT_QUESTIONS_WINDOW_SECONDS:3600}
+    cleanup-interval-ms: 3600000
+    cleanup-initial-delay-ms: 3600000
+
+chunk:
+  max:
+    size: 500
+  overlap:
+    size: 100
+
+rag:
+  retrieval:
+    maxResults: 5
+    list-max-results: 12
+    minimum-similarity: 0.65
+
+ocr:
+  executable: tesseract
+  language: eng
+  dpi: 300
+
+spring:
+  application:
+    name: DocMind-ai
+  ai:
+    model:
+      chat: openai
+      embedding: none
+      "embedding.text": google-genai
+
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai/v1
+      timeout: 30s
+      max-retries: 0
+      chat:
+        model: openai/gpt-oss-120b
+        temperature: 0.2
+
+    google:
+      genai:
+        embedding:
+          api-key: ${GEMINI_API_KEY}
+          text:
+            model: gemini-embedding-2
+            task-type: RETRIEVAL_DOCUMENT
+            dimensions: 768
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 22MB
+  mvc:
+    async:
+      request-timeout: 180000
+
+logging:
+  level:
+    org.flywaydb: INFO
+

@@ -3,6 +3,7 @@ package com.pnm.docmind.service.document;
 import com.pnm.docmind.constant.DocumentStatus;
 import com.pnm.docmind.dto.UploadDocumentResponse;
 import com.pnm.docmind.dto.DocumentSummaryResponse;
+import com.pnm.docmind.dto.DocumentFileDownload;
 import com.pnm.docmind.entity.Document;
 import com.pnm.docmind.entity.DocumentFileCleanupTask;
 import com.pnm.docmind.entity.DocumentProcessingJob;
@@ -17,6 +18,7 @@ import com.pnm.docmind.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -47,6 +49,9 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Value("${app.storage.path}")
     private String storagePath;
+
+    @Value("${app.showcase.demo-document-id}")
+    private Long demoDocumentId;
 
     @Override
     @Transactional
@@ -134,6 +139,31 @@ public class DocumentServiceImpl implements DocumentService {
                         document.getFileSize(), document.getDocumentStatus(), document.getUploadedAt(),
                         document.isPublicDocument()))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentFileDownload downloadDocument(Long documentId, UUID workspaceId) {
+        Document document = documentRepository.findByIdWithWorkspace(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException("Document not found with id: " + documentId));
+
+        boolean ownedByWorkspace = document.getWorkspace() != null
+                && workspaceId.equals(document.getWorkspace().getId());
+        boolean publicDemoDocument = documentId.equals(demoDocumentId) && document.isPublicDocument();
+        if (!ownedByWorkspace && !publicDemoDocument) {
+            throw new DocumentNotFoundException("Document not found with id: " + documentId);
+        }
+
+        Path storageRoot = Paths.get(storagePath).toAbsolutePath().normalize();
+        Path filePath = storageRoot.resolve(document.getStoredFilename()).normalize();
+        if (!filePath.startsWith(storageRoot) || !Files.isRegularFile(filePath)) {
+            throw new FileStorageException("The document file is not available for download");
+        }
+
+        String filename = StringUtils.hasText(document.getOriginalFilename())
+                ? document.getOriginalFilename()
+                : "document.pdf";
+        return new DocumentFileDownload(new FileSystemResource(filePath), filename);
     }
 
     @Override

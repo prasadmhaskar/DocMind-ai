@@ -2,6 +2,9 @@ server:
   port: 8080
 
 app:
+  showcase:
+    demo-document-id: ${DEMO_DOCUMENT_ID:50}
+    profile-document-id: ${PROFILE_DOCUMENT_ID:49}
   storage:
     path: /home/prasad/docmindDocuments
   ai:
@@ -93,7 +96,10 @@ spring:
   servlet:
     multipart:
       max-file-size: 20MB
-      max-request-size: 20MB
+      max-request-size: 22MB
+  mvc:
+    async:
+      request-timeout: 180000
 
 logging:
   level:

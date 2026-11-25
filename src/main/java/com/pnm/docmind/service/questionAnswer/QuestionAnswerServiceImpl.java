@@ -31,11 +31,35 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class QuestionAnswerServiceImpl implements QuestionAnswerService {
+    private static final Pattern GREETING_ONLY = Pattern.compile("(?:hi|hii|hiii|hello|hey|heyy|hie|hiee)[.!?]*", Pattern.CASE_INSENSITIVE);
+    private static final String NO_RELEVANT_INFORMATION = "I couldn't find relevant information in the document.";
+    private static final String DEMO_GREETING = """
+            Hi! I can answer questions about planning a trip using the How to Plan a Trip guide. Try asking:
+
+            - How to plan a budget friendly trip?
+            - How can I keep a trip organized and safe?
+            - What is a simple three-day trip itinerary?
+            """.strip();
+    private static final String PROFILE_GREETING = """
+            Hi! I’m DocMind. I can answer questions about Prasad’s background, skills, and projects. Try asking:
+
+            - Tell me about prasad?
+            - What skills does Prasad have?
+            - Which projects has Prasad built?
+            """.strip();
+
+    @Value("${app.showcase.demo-document-id}")
+    private long demoDocumentId;
+
+    @Value("${app.showcase.profile-document-id:0}")
+    private long profileDocumentId;
+
     @Value("${rag.retrieval.maxResults}")
     private int maxResults;
 
@@ -56,8 +80,8 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
     public AskQuestionResponse retrieve(Long documentId, Long conversationId, String question, UUID workspaceId) {
         long start = System.currentTimeMillis();
         PreparedQuestion prepared = prepareQuestion(documentId, conversationId, question, workspaceId);
-        String answer = prepared.topChunks().isEmpty()
-                ? "I couldn't find relevant information in the document."
+        String answer = prepared.directAnswer() != null
+                ? prepared.directAnswer()
                 : chatProviderRouter.call(prepared.prompt());
 
         if (answer == null || answer.isBlank()) {
@@ -65,8 +89,7 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
         }
 
         AskQuestionResponse response = persistResponse(prepared, answer);
-        log.info("Answer generated from model for document {}", documentId);
-        log.info("Question answered in {} ms", System.currentTimeMillis() - start);
+        log.info("Question answered for document {} in {} ms", documentId, System.currentTimeMillis() - start);
         return response;
     }
 
@@ -87,8 +110,11 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
                 return;
             }
 
+            String status = GREETING_ONLY.matcher(question.strip()).matches()
+                    ? "Preparing your answer..."
+                    : "Retrieving document context...";
             if (!sendEvent(emitter, new QuestionStreamEvent(
-                    "status", null, null, null, null, "Retrieving document context..."), subscriptions)) {
+                    "status", null, null, null, null, status), subscriptions)) {
                 return;
             }
 
@@ -127,8 +153,8 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
     private Flux<QuestionStreamEvent> createStreamEvents(PreparedQuestion prepared, Runnable onFallback) {
         return Flux.defer(() -> {
             StringBuilder answer = new StringBuilder();
-            Flux<String> generatedChunks = prepared.topChunks().isEmpty()
-                    ? Flux.just("I couldn't find relevant information in the document.")
+            Flux<String> generatedChunks = prepared.directAnswer() != null
+                    ? Flux.just(prepared.directAnswer())
                     : chatProviderRouter.streamText(prepared.prompt(), onFallback);
 
             return Flux.concat(
@@ -186,7 +212,6 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
         Document document = documentRepository.findVisibleByIdAndWorkspace(documentId, workspaceId).orElseThrow(() ->
                 new DocumentNotFoundException("Document not found with id: " + documentId));
 
-        log.info("Retrieving chunks for document {}", documentId);
         switch (document.getDocumentStatus()) {
             case READY -> { }
             case UPLOADING, PROCESSING ->
@@ -194,8 +219,15 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
             case FAILED -> throw new DocumentProcessingException("Document processing failed.");
         }
 
-        String trimmedQuestion = question.trim();
+        String trimmedQuestion = question.strip();
         Conversation conversation = conversationService.findExisting(conversationId, document, workspaceId);
+        String greeting = showcaseGreeting(document, trimmedQuestion);
+        if (greeting != null) {
+            log.debug("Returning showcase greeting for document {}", documentId);
+            return new PreparedQuestion(document, conversation, workspaceId, trimmedQuestion, List.of(), null, greeting);
+        }
+
+        log.info("Retrieving chunks for document {}", documentId);
         List<ChatMessage> history = conversation == null
                 ? List.of()
                 : conversationService.getRecentHistory(conversation.getId());
@@ -209,12 +241,22 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
         List<SourceResponse> sources = topChunks.stream()
                 .map(chunk -> new SourceResponse(chunk.pageNumber(), chunk.chunkIndex(), chunk.similarity()))
                 .toList();
-        String prompt = topChunks.isEmpty()
-                ? null
-                : promptBuilder.build(trimmedQuestion, promptHistory, topChunks);
-
         log.info("Retrieved {} relevant chunks for document {}", topChunks.size(), documentId);
-        return new PreparedQuestion(document, conversation, workspaceId, trimmedQuestion, topChunks, sources, prompt);
+        if (topChunks.isEmpty()) {
+            return new PreparedQuestion(document, conversation, workspaceId, trimmedQuestion, sources, null, NO_RELEVANT_INFORMATION);
+        }
+        String prompt = promptBuilder.build(trimmedQuestion, promptHistory, topChunks);
+        return new PreparedQuestion(document, conversation, workspaceId, trimmedQuestion, sources, prompt, null);
+    }
+
+    private String showcaseGreeting(Document document, String question) {
+        if (!document.isPublicDocument() || !GREETING_ONLY.matcher(question).matches()) {
+            return null;
+        }
+        if (document.getId() == demoDocumentId) {
+            return DEMO_GREETING;
+        }
+        return document.getId() == profileDocumentId ? PROFILE_GREETING : null;
     }
 
     private void requireAccessibleDocument(Long documentId, UUID workspaceId) {
@@ -266,9 +308,9 @@ public class QuestionAnswerServiceImpl implements QuestionAnswerService {
             Conversation conversation,
             UUID workspaceId,
             String question,
-            List<RetrievedChunk> topChunks,
             List<SourceResponse> sources,
-            String prompt) { }
+            String prompt,
+            String directAnswer) { }
 
     @PostConstruct
     void validateRetrievalProperties() {

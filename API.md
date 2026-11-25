@@ -25,13 +25,15 @@ Upload a PDF with `POST /api/v1/documents` (`multipart/form-data`, field `file`)
 
 `GET /api/v1/documents/{documentId}` returns the processing status for a document in the current workspace or a public document. `DELETE /api/v1/documents/{documentId}` deletes an owned document and its related chunks, conversations, and messages, then removes the stored PDF. Public documents are read-only to other workspaces. A successful delete returns `204 No Content`; an inaccessible or unknown ID returns `404`.
 
+`GET /api/v1/documents/{documentId}/download` streams the PDF as an attachment. The current workspace can download its own documents. Other workspaces can download only the configured public demo document (`DEMO_DOCUMENT_ID`, defaults to `50` with the `dev` profile), and only while that row has `is_public = true`. Other document IDs return `404`, including IDs supplied directly in a URL or API request. This endpoint also requires the workspace cookie.
+
 ## Rate limits
 
 Upload and question requests are limited per anonymous workspace using counters stored in PostgreSQL. Defaults are five uploads per hour and 30 questions per hour. Both JSON and streaming question endpoints count as a question. Limits are configurable with `RATE_LIMIT_UPLOADS_MAX`, `RATE_LIMIT_UPLOADS_WINDOW_SECONDS`, `RATE_LIMIT_QUESTIONS_MAX`, and `RATE_LIMIT_QUESTIONS_WINDOW_SECONDS`.
 
 When a limit is reached, the API returns `429 Too Many Requests`, a plain-text message, and a `Retry-After` header containing the number of seconds until the current fixed window resets. The frontend reads this header and displays when the user can retry. Expired counters are periodically removed. These limits are per workspace; a visitor can get a fresh workspace by clearing the browser's workspace cookie.
 
-Documents are automatically removed after five days unless `retention_exempt` is set to `true` for that document. New documents default to `false` and expire normally. After uploading the permanent Demo and Portfolio documents, mark them public and exempt from retention by ID:
+Documents are automatically removed after five days unless `retention_exempt` is set to `true` for that document. New documents default to `false` and expire normally. After uploading the permanent trip-planning demo and Prasad profile documents, mark them public and exempt from retention by ID:
 
 ```sql
 UPDATE documents
@@ -123,7 +125,7 @@ data: {"type":"complete","conversationId":15,"delta":null,"answer":"IPv4 is ..."
 
 If context preparation or generation fails after the stream opens, an `error` event is sent and the stream ends. Request validation errors detected before the stream opens use the normal HTTP error response. The turn is saved only after a complete answer is generated and persisted.
 
-## Demo and Portfolio document buttons
+## Demo and profile document buttons
 
 Store the selected document's ID in each Demo or Portfolio button. When the user selects a button and asks a question, send that question to the existing document-specific ask endpoint using the button's ID:
 
@@ -132,3 +134,5 @@ POST /api/v1/questions/documents/{buttonDocumentId}/ask
 ```
 
 For streamed answers, use `/ask/stream` on the same path. The backend retrieves chunks only for that document ID and returns its sources with the answer. Use `GET /api/v1/documents` to populate or validate available IDs; use `GET /api/v1/documents/{documentId}` to confirm the selected document has finished processing before enabling questions.
+
+The frontend shows a **Download demo PDF** control in the selected demo document's header. The profile document has no public download control. The backend download authorization is independent of the frontend, so changing an ID or sending a raw request does not grant access to another workspace's private PDF.

@@ -22,6 +22,9 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     Optional<Document> findVisibleByIdAndWorkspace(
             @Param("documentId") Long documentId,
             @Param("workspaceId") UUID workspaceId);
+
+    @Query("select d from Document d left join fetch d.workspace where d.id = :documentId")
+    Optional<Document> findByIdWithWorkspace(@Param("documentId") Long documentId);
     List<Document> findTop100ByRetentionExemptFalseAndUploadedAtBeforeOrderByUploadedAtAsc(LocalDateTime cutoff);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

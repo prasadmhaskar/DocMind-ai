@@ -1,4 +1,5 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
+const defaultApiBaseUrl = import.meta.env.DEV ? "http://localhost:8080" : "";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/+$/, "");
 
 let workspaceReady = false;
 let workspaceRequest = null;
@@ -83,6 +84,22 @@ export const api = {
 
   deleteDocument(documentId) {
     return request(`/api/v1/documents/${documentId}`, { method: "DELETE" });
+  },
+
+  async downloadDocument(documentId) {
+    const response = await fetchWithWorkspace(`/api/v1/documents/${documentId}/download`);
+    if (!response.ok) {
+      throw await createApiError(response, "Could not download this document.");
+    }
+
+    const objectUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = "How to Plan a Trip.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
   },
 
   getConversations(documentId) {
