@@ -5,8 +5,8 @@ server:
 
 app:
   showcase:
-    demo-document-id: ${DEMO_DOCUMENT_ID}
-    profile-document-id: ${PROFILE_DOCUMENT_ID}
+    demo-document-id: ${DEMO_DOCUMENT_ID:2}
+    profile-document-id: ${PROFILE_DOCUMENT_ID:1}
   storage:
     path: ${FILE_STORAGE_PATH}
   ai:

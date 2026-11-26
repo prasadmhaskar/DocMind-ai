@@ -169,9 +169,9 @@ Optional settings and their defaults:
 | `SPRING_DATASOURCE_PASSWORD` | `postgres` | PostgreSQL password. Change the local defaults outside development. |
 | `VITE_API_BASE_URL` | `http://localhost:8080` in Vite dev, same origin in production | Set to an origin if the API is hosted elsewhere. Use `/` to explicitly select the same origin. |
 | `DEMO_DOCUMENT_ID` | `50` with the `dev` profile | Backend ID for the public demo download and greeting. Match `VITE_DEMO_DOCUMENT_ID`. |
-| `PROFILE_DOCUMENT_ID` | `49` with the `dev` profile | Backend ID for the profile greeting. Set it to match `VITE_PROFILE_DOCUMENT_ID` in production. |
+| `PROFILE_DOCUMENT_ID` | `52` with the `dev` profile | Backend ID for the profile greeting. Set it to match `VITE_PROFILE_DOCUMENT_ID` in production. |
 | `VITE_DEMO_DOCUMENT_ID` | `50` | Frontend document ID for the How to Plan a Trip demo. |
-| `VITE_PROFILE_DOCUMENT_ID` | `49` | Public document ID for Prasad’s profile and portfolio. |
+| `VITE_PROFILE_DOCUMENT_ID` | `52` | Public document ID for Prasad’s profile and portfolio. |
 | `RATE_LIMIT_UPLOADS_MAX` | `5` | Maximum PDF uploads allowed per workspace in the configured upload window. |
 | `RATE_LIMIT_UPLOADS_WINDOW_SECONDS` | `3600` | Upload rate-limit window length in seconds. |
 | `RATE_LIMIT_QUESTIONS_MAX` | `30` | Maximum normal and streamed question requests allowed per workspace in the configured question window. |
@@ -204,12 +204,12 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173). On startup, the app initializes the anonymous workspace and stores the workspace token in an HttpOnly cookie. Browser API calls include credentials automatically.
 
-Copy `frontend/.env.example` to `frontend/.env` and adjust the values for your database and backend. For example:
+Copy `frontend/.env.production` to `frontend/.env` and adjust the values for your database and backend. For example:
 
 ```dotenv
 VITE_API_BASE_URL=http://localhost:8080
 VITE_DEMO_DOCUMENT_ID=50
-VITE_PROFILE_DOCUMENT_ID=49
+VITE_PROFILE_DOCUMENT_ID=52
 ```
 
 The showcase document IDs are database-specific. Set them to the IDs of the public, retention-exempt demo and profile PDFs in the target environment, then rebuild the frontend. Vite variables are embedded in the built JavaScript; they are configuration, not secrets. Set the backend `DEMO_DOCUMENT_ID` to the same value as `VITE_DEMO_DOCUMENT_ID` so the server's public-download allowlist matches the demo button. The backend CORS origin must match the frontend origin exactly. For local development, the default is `http://localhost:5173`.
@@ -256,13 +256,13 @@ Replace `1` with the ID returned by upload. For streaming, use `curl -N` with th
 
 Document status moves through `PROCESSING`, then `READY` or `FAILED`. Upload creates a durable database job so pending work can be recovered after a restart. Processing is retried up to five times with backoff. Gemini embedding calls are split into batches of no more than 100 chunks.
 
-Documents are retained for five days by default and the retention job checks once every 24 hours. Set `retention_exempt = true` for documents that should stay permanently. Public showcase documents also need `is_public = true`. The intended local IDs are `50` for the How to Plan a Trip demo and `49` for Prasad’s profile, but verify each ID after upload because PostgreSQL assigns document IDs:
+Documents are retained for five days by default and the retention job checks once every 24 hours. Set `retention_exempt = true` for documents that should stay permanently. Public showcase documents also need `is_public = true`. The intended local IDs are `50` for the How to Plan a Trip demo and `52` for Prasad’s profile, but verify each ID after upload because PostgreSQL assigns document IDs:
 
 ```sql
 UPDATE documents
 SET is_public = TRUE,
     retention_exempt = TRUE
-WHERE id IN (50, 49);
+WHERE id IN (50, 52);
 ```
 
 If the old Everyday Life Guide at ID `40` is no longer a showcase, set its `is_public` flag to `FALSE` after confirming it is the correct row. Use the IDs from the target database when deploying, set `DEMO_DOCUMENT_ID`, `PROFILE_DOCUMENT_ID`, and the two `VITE_*_DOCUMENT_ID` variables accordingly, then rebuild the frontend.
@@ -404,4 +404,4 @@ Upload the two showcase PDFs through the site. Wait for both to reach `READY`, c
 
 ## Current showcase status
 
-The demo source content is in [`docs/demo/how-to-plan-a-trip.md`](docs/demo/how-to-plan-a-trip.md). Create a PDF from it and upload it to the target database; the PDF itself is not committed. The frontend defaults to demo ID `50` and profile ID `49`, but database IDs are assigned by PostgreSQL and must be confirmed after upload. Configure `DEMO_DOCUMENT_ID`, `PROFILE_DOCUMENT_ID`, `VITE_DEMO_DOCUMENT_ID`, and `VITE_PROFILE_DOCUMENT_ID` for each environment. The demo and profile rows should both be public and retention-exempt; only the configured demo PDF is downloadable by visitors outside its owner workspace.
+The demo source content is in [`docs/demo/how-to-plan-a-trip.md`](docs/demo/how-to-plan-a-trip.md). Create a PDF from it and upload it to the target database; the PDF itself is not committed. The frontend defaults to demo ID `50` and profile ID `52`, but database IDs are assigned by PostgreSQL and must be confirmed after upload. Configure `DEMO_DOCUMENT_ID`, `PROFILE_DOCUMENT_ID`, `VITE_DEMO_DOCUMENT_ID`, and `VITE_PROFILE_DOCUMENT_ID` for each environment. The demo and profile rows should both be public and retention-exempt; only the configured demo PDF is downloadable by visitors outside its owner workspace.
