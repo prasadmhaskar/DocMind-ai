@@ -174,7 +174,7 @@ export default function App() {
   const fileRef = useRef(null);
   const searchRef = useRef(null);
   const startNewChatRef = useRef(null);
-  const bottomRef = useRef(null);
+  const conversationRef = useRef(null);
   const streamControllerRef = useRef(null);
 
   const selectedDocument = useMemo(
@@ -310,7 +310,10 @@ export default function App() {
   }, [selectedDocument]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const conversation = conversationRef.current;
+    if (conversation && messages.length > 0) {
+      conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
+    }
   }, [messages, sending]);
 
   useEffect(() => {
@@ -721,7 +724,7 @@ export default function App() {
           </section>
         ) : (
           <>
-            <section className={`conversation-view ${messages.length === 0 ? "conversation-empty" : ""}`}>
+            <section ref={conversationRef} className={`conversation-view ${messages.length === 0 ? "conversation-empty" : ""}`}>
               {chatLoading ? <div className="chat-loading"><span className="button-spinner" /> Loading conversation…</div> : null}
               {!chatLoading && messages.length === 0 ? (
                 <div className="empty-chat">
@@ -780,7 +783,6 @@ export default function App() {
                       )}
                     </article>
                   ))}
-                  <div ref={bottomRef} />
                 </div>
               ) : null}
             </section>
